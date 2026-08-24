@@ -1,0 +1,161 @@
+name: vendorops-local
+
+x-json-logging: &json-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  vendorops-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vendorops-agent:local
+    pull_policy: build
+    env_file:
+      - .env
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: vendorops-agent
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_BSP_SCHEDULE_DELAY: "1000"
+    ports:
+      - "8080:8080"
+    depends_on:
+      otel-collector:
+        condition: service_started
+    networks:
+      - vendorops
+    restart: unless-stopped
+    logging: *json-logging
+
+  opensearch:
+    image: opensearchproject/opensearch:3.6.0
+    environment:
+      discovery.type: single-node
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      bootstrap.memory_lock: "true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE 'green|yellow'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    networks:
+      - vendorops
+    restart: unless-stopped
+    logging: *json-logging
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:3.6.0
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+    volumes:
+      - ./dev-scripts/local/opensearch_dashboards.yml:/usr/share/opensearch-dashboards/config/opensearch_dashboards.yml:ro
+    ports:
+      - "5601:5601"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status | grep -qE '\"state\":\"green\"|\"level\":\"available\"'"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+    networks:
+      - vendorops
+    restart: unless-stopped
+    logging: *json-logging
+
+  data-prepper:
+    image: opensearchproject/data-prepper:2.14.1
+    volumes:
+      - ./dev-scripts/local/pipelines.yaml:/usr/share/data-prepper/pipelines/pipelines.yaml:ro
+      - ./dev-scripts/local/data-prepper-config.yaml:/usr/share/data-prepper/config/data-prepper-config.yaml:ro
+    ports:
+      - "4900:4900"
+      - "21890:21890"
+      - "21892:21892"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo >/dev/tcp/127.0.0.1/21890'"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 25s
+    networks:
+      - vendorops
+    restart: unless-stopped
+    logging: *json-logging
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.136.0
+    user: "0:0"
+    command: ["--config=/etc/otelcol/otel-collector.yaml"]
+    volumes:
+      - ./dev-scripts/local/otel-collector.yaml:/etc/otelcol/otel-collector.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      data-prepper:
+        condition: service_healthy
+    networks:
+      - vendorops
+    restart: unless-stopped
+    logging: *json-logging
+
+  opensearch-init:
+    image: curlimages/curl:8.11.1
+    user: "0:0"
+    environment:
+      OPENSEARCH_URL: http://opensearch:9200
+      OPENSEARCH_DASHBOARDS_URL: http://opensearch-dashboards:5601
+      TEMPLATE_DIR: /templates
+      DASHBOARDS_DIR: /dashboards
+      WORKSPACE_NAME: VendorOps Observability
+      DATASOURCE_ID: vendorops-local
+    volumes:
+      - ./dev-scripts/local/init-opensearch.sh:/init-opensearch.sh:ro
+      - ./dev-scripts/local/index-templates:/templates:ro
+      - ./dev-scripts/local/dashboards:/dashboards:ro
+    entrypoint: ["/bin/sh", "/init-opensearch.sh"]
+    depends_on:
+      opensearch:
+        condition: service_healthy
+      opensearch-dashboards:
+        condition: service_healthy
+    networks:
+      - vendorops
+    restart: "no"
+    logging: *json-logging
+
+networks:
+  vendorops:
+    driver: bridge
+
+volumes:
+  opensearch-data:

@@ -1,0 +1,67 @@
+{
+  "index_patterns": ["otel-v1-apm-span*"],
+  "order": 10,
+  "version": 2,
+  "settings": {
+    "index": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s",
+      "opendistro.index_state_management.rollover_alias": "otel-v1-apm-span"
+    }
+  },
+  "mappings": {
+    "_source": { "enabled": true },
+    "date_detection": false,
+    "dynamic_templates": [
+      {
+        "resource_attributes_map": {
+          "path_match": "resource.attributes.*",
+          "mapping": { "type": "keyword", "ignore_above": 1024 }
+        }
+      },
+      {
+        "span_attributes_map": {
+          "path_match": "span.attributes.*",
+          "mapping": { "type": "keyword", "ignore_above": 1024 }
+        }
+      }
+    ],
+    "properties": {
+      "traceId": { "type": "keyword", "ignore_above": 256 },
+      "spanId": { "type": "keyword", "ignore_above": 256 },
+      "parentSpanId": { "type": "keyword", "ignore_above": 256 },
+      "name": { "type": "keyword", "ignore_above": 1024 },
+      "kind": { "type": "keyword", "ignore_above": 128 },
+      "traceGroup": { "type": "keyword", "ignore_above": 1024 },
+      "serviceName": { "type": "keyword" },
+      "startTime": { "type": "date_nanos" },
+      "endTime": { "type": "date_nanos" },
+      "durationInNanos": { "type": "long" },
+      "attributes": { "type": "object", "dynamic": true },
+      "resource": { "type": "object", "dynamic": true },
+      "traceGroupFields": {
+        "properties": {
+          "endTime": { "type": "date_nanos" },
+          "durationInNanos": { "type": "long" },
+          "statusCode": { "type": "integer" }
+        }
+      },
+      "status": {
+        "properties": {
+          "code": { "type": "integer" },
+          "message": { "type": "keyword" }
+        }
+      },
+      "events": {
+        "type": "nested",
+        "dynamic": true,
+        "properties": {
+          "time": { "type": "date_nanos" },
+          "name": { "type": "keyword" }
+        }
+      },
+      "links": { "type": "nested", "dynamic": true }
+    }
+  }
+}

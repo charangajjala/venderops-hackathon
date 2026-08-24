@@ -1,0 +1,5 @@
+ssl: false
+peer_forwarder:
+  ssl: false
+metricRegistries:
+  - Prometheus

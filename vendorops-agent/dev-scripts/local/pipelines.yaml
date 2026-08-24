@@ -1,0 +1,78 @@
+entry-pipeline:
+  workers: 2
+  delay: "100"
+  source:
+    otel_trace_source:
+      ssl: false
+      output_format: otel
+      authentication:
+        unauthenticated:
+  buffer:
+    bounded_blocking:
+      buffer_size: 512
+      batch_size: 64
+  sink:
+    - pipeline:
+        name: raw-trace-pipeline
+    - pipeline:
+        name: service-map-pipeline
+
+raw-trace-pipeline:
+  workers: 2
+  delay: 3000
+  source:
+    pipeline:
+      name: entry-pipeline
+  buffer:
+    bounded_blocking:
+      buffer_size: 512
+      batch_size: 64
+  processor:
+    - otel_traces:
+        trace_flush_interval: 5
+  sink:
+    - opensearch:
+        hosts: ["http://opensearch:9200"]
+        insecure: true
+        index_type: trace-analytics-plain-raw
+
+service-map-pipeline:
+  workers: 2
+  delay: "100"
+  source:
+    pipeline:
+      name: entry-pipeline
+  buffer:
+    bounded_blocking:
+      buffer_size: 512
+      batch_size: 64
+  processor:
+    - service_map:
+  sink:
+    - opensearch:
+        hosts: ["http://opensearch:9200"]
+        insecure: true
+        index_type: trace-analytics-service-map
+
+docker-logs-pipeline:
+  workers: 2
+  delay: "100"
+  source:
+    otel_logs_source:
+      port: 21892
+      ssl: false
+      authentication:
+        unauthenticated:
+  buffer:
+    bounded_blocking:
+      buffer_size: 512
+      batch_size: 64
+  processor:
+    - date:
+        from_time_received: true
+        destination: "@timestamp"
+  sink:
+    - opensearch:
+        hosts: ["http://opensearch:9200"]
+        insecure: true
+        index: docker-logs

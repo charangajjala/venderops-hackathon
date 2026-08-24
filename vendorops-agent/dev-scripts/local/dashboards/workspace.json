@@ -1,0 +1,10 @@
+{
+  "attributes": {
+    "name": "VendorOps Observability",
+    "description": "Local logs, traces, and agent traces",
+    "features": ["use-case-observability"]
+  },
+  "settings": {
+    "dataSources": ["vendorops-local"]
+  }
+}

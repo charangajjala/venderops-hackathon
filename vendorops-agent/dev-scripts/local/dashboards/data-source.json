@@ -1,0 +1,12 @@
+{
+  "attributes": {
+    "title": "VendorOps local",
+    "description": "Local OpenSearch cluster",
+    "endpoint": "http://opensearch:9200",
+    "dataSourceVersion": "3.6.0",
+    "dataSourceEngineType": "OpenSearch",
+    "auth": {
+      "type": "no_auth"
+    }
+  }
+}
