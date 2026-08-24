@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "title": "otel-v1-apm-span*",
+    "displayName": "OTel traces",
+    "description": "OpenTelemetry spans ingested by Data Prepper",
+    "timeFieldName": "endTime",
+    "signalType": "traces",
+    "schemaMappings": "{\"otelTraces\":{\"timeField\":\"endTime\",\"traceId\":\"traceId\",\"spanId\":\"spanId\",\"serviceName\":\"serviceName\"}}",
+    "fields": "[{\"name\":\"endTime\",\"type\":\"date\",\"esTypes\":[\"date_nanos\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"startTime\",\"type\":\"date\",\"esTypes\":[\"date_nanos\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"name\",\"type\":\"string\",\"esTypes\":[\"keyword\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"serviceName\",\"type\":\"string\",\"esTypes\":[\"keyword\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"traceId\",\"type\":\"string\",\"esTypes\":[\"keyword\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"spanId\",\"type\":\"string\",\"esTypes\":[\"keyword\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"parentSpanId\",\"type\":\"string\",\"esTypes\":[\"keyword\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"attributes.gen_ai.operation.name\",\"type\":\"string\",\"esTypes\":[\"keyword\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"_id\",\"type\":\"string\",\"scripted\":false,\"searchable\":false,\"aggregatable\":false,\"readFromDocValues\":false},{\"name\":\"_index\",\"type\":\"string\",\"scripted\":false,\"searchable\":false,\"aggregatable\":false,\"readFromDocValues\":false},{\"name\":\"_score\",\"type\":\"number\",\"scripted\":false,\"searchable\":false,\"aggregatable\":false,\"readFromDocValues\":false},{\"name\":\"_source\",\"type\":\"_source\",\"scripted\":false,\"searchable\":false,\"aggregatable\":false,\"readFromDocValues\":false}]"
+  },
+  "references": [
+    {
+      "name": "dataSource",
+      "type": "data-source",
+      "id": "vendorops-local"
+    }
+  ]
+}

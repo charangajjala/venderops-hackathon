@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "title": "docker-logs*",
+    "displayName": "Docker logs",
+    "description": "Container logs collected from Docker",
+    "timeFieldName": "@timestamp",
+    "signalType": "logs",
+    "schemaMappings": "{\"otelLogs\":{\"timeField\":\"@timestamp\",\"traceId\":\"traceId\",\"spanId\":\"spanId\",\"serviceName\":\"serviceName\"}}",
+    "fields": "[{\"name\":\"@timestamp\",\"type\":\"date\",\"esTypes\":[\"date\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"time\",\"type\":\"date\",\"esTypes\":[\"date\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"observedTimestamp\",\"type\":\"date\",\"esTypes\":[\"date\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"body\",\"type\":\"string\",\"esTypes\":[\"text\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":false,\"readFromDocValues\":false},{\"name\":\"serviceName\",\"type\":\"string\",\"esTypes\":[\"keyword\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"_id\",\"type\":\"string\",\"scripted\":false,\"searchable\":false,\"aggregatable\":false,\"readFromDocValues\":false},{\"name\":\"_index\",\"type\":\"string\",\"scripted\":false,\"searchable\":false,\"aggregatable\":false,\"readFromDocValues\":false},{\"name\":\"_score\",\"type\":\"number\",\"scripted\":false,\"searchable\":false,\"aggregatable\":false,\"readFromDocValues\":false},{\"name\":\"_source\",\"type\":\"_source\",\"scripted\":false,\"searchable\":false,\"aggregatable\":false,\"readFromDocValues\":false}]"
+  },
+  "references": [
+    {
+      "name": "dataSource",
+      "type": "data-source",
+      "id": "vendorops-local"
+    }
+  ]
+}

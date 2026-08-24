@@ -1,0 +1,24 @@
+{
+  "index_patterns": ["docker-logs*"],
+  "priority": 200,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.refresh_interval": "5s"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "time": { "type": "date" },
+        "observedTimestamp": { "type": "date_nanos" },
+        "body": { "type": "text" },
+        "severity": { "type": "keyword" },
+        "severityText": { "type": "keyword" },
+        "serviceName": { "type": "keyword" },
+        "droppedAttributesCount": { "type": "integer" },
+        "schemaUrl": { "type": "keyword" }
+      }
+    }
+  }
+}
