@@ -1,0 +1,64 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  filelog:
+    include:
+      - /var/lib/docker/containers/*/*-json.log
+    start_at: beginning
+    include_file_path: true
+    retry_on_failure:
+      enabled: true
+    operators:
+      - type: json_parser
+        id: parser-docker
+        if: 'body matches "^{.*"'
+        timestamp:
+          parse_from: attributes.time
+          layout: "%Y-%m-%dT%H:%M:%S.%LZ"
+      - type: move
+        from: attributes.log
+        to: body
+        if: attributes.log != nil
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 16
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: local
+        action: upsert
+  transform/genai:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - set(attributes["gen_ai.provider.name"], attributes["gen_ai.system"]) where attributes["gen_ai.provider.name"] == nil
+
+exporters:
+  otlp/traces:
+    endpoint: data-prepper:21890
+    tls:
+      insecure: true
+  otlp/logs:
+    endpoint: data-prepper:21892
+    tls:
+      insecure: true
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch, resource, transform/genai]
+      exporters: [otlp/traces, debug]
+    logs:
+      receivers: [otlp, filelog]
+      processors: [batch]
+      exporters: [otlp/logs, debug]

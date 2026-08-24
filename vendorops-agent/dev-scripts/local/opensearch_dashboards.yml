@@ -1,0 +1,16 @@
+server.host: "0.0.0.0"
+server.name: vendorops-dashboards
+opensearch.hosts: ["http://opensearch:9200"]
+opensearch.ssl.verificationMode: none
+opensearch.requestTimeout: 120000
+opensearchDashboards.branding.applicationTitle: VendorOps Local
+
+home.disableWelcomeScreen: true
+home.disableExperienceModal: true
+
+workspace.enabled: true
+data_source.enabled: true
+explore.enabled: true
+explore.discoverTraces.enabled: true
+explore.agentTraces.enabled: true
+datasetManagement.enabled: true

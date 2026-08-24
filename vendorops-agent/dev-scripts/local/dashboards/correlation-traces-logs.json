@@ -1,0 +1,36 @@
+{
+  "attributes": {
+    "correlationType": "Traces-Logs-Correlation",
+    "version": "1.0.0",
+    "entities": [
+      {
+        "tracesDataset": {
+          "id": "references[0].id"
+        }
+      },
+      {
+        "logsDataset": {
+          "meta": {
+            "logSpanIdField": "spanId",
+            "logTraceIdField": "traceId",
+            "logMessage": "body",
+            "timestamp": "@timestamp"
+          },
+          "id": "references[1].id"
+        }
+      }
+    ]
+  },
+  "references": [
+    {
+      "name": "entities[0].index",
+      "type": "index-pattern",
+      "id": "otel-v1-apm-span"
+    },
+    {
+      "name": "entities[1].index",
+      "type": "index-pattern",
+      "id": "docker-logs"
+    }
+  ]
+}
