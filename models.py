@@ -12,7 +12,7 @@ from decimal import Decimal
 from enum import Enum
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -278,13 +278,13 @@ class Quote(BaseModel):
         description="Any quoted term that comes up but isn't in the schema - captured here, never silently dropped.",
     )
 
-    @field_validator("quantity")
-    @classmethod
-    def quantity_meets_moq(cls, v: int, info) -> int:
-        moq = info.data.get("moq")
-        if moq is not None and v < moq:
-            raise ValueError(f"quoted quantity {v} is below vendor's stated MOQ {moq}")
-        return v
+    @model_validator(mode="after")
+    def quantity_meets_moq(self) -> "Quote":
+        if self.moq is not None and self.quantity < self.moq:
+            raise ValueError(
+                f"quoted quantity {self.quantity} is below vendor's stated MOQ {self.moq}"
+            )
+        return self
 
 
 # ---------------------------------------------------------------------------
