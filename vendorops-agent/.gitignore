@@ -1,8 +1,0 @@
-.env
-.venv/
-__pycache__/
-*.py[cod]
-*.pyo
-.python-version.bak
-dist/
-*.egg-info/

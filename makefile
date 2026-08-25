@@ -1,5 +1,4 @@
-COMPOSE_DIR := vendorops-agent
-COMPOSE := docker compose -f $(COMPOSE_DIR)/docker-compose.yml --project-directory $(COMPOSE_DIR)
+COMPOSE := docker compose -f docker-compose.yml --project-directory .
 
 .PHONY: help docker-run-local docker-stop-local docker-stop-local-complete docker-logs-local docker-restart-local
 
