@@ -25,22 +25,28 @@ def _env(name: str, *, required: bool = True) -> str | None:
     return None
 
 
-aws_access_key_id = _env("AWS_ACCESS_KEY_ID")
-aws_secret_access_key = _env("AWS_SECRET_ACCESS_KEY")
+aws_access_key_id = _env("AWS_ACCESS_KEY_ID", required=False)
+aws_secret_access_key = _env("AWS_SECRET_ACCESS_KEY", required=False)
 aws_session_token = _env("AWS_SESSION_TOKEN", required=False)
-aws_region = _env("AWS_DEFAULT_REGION", required=False) or "us-east-1"
-
-boto3.setup_default_session(
-    aws_access_key_id=aws_access_key_id,
-    aws_secret_access_key=aws_secret_access_key,
-    aws_session_token=aws_session_token,
-    region_name=aws_region,
+aws_region = (
+    _env("AWS_REGION", required=False)
+    or _env("AWS_DEFAULT_REGION", required=False)
+    or "us-east-1"
 )
+
+if aws_access_key_id and aws_secret_access_key:
+    boto3.setup_default_session(
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        aws_session_token=aws_session_token,
+        region_name=aws_region,
+    )
 
 MODEL_ID = "us.amazon.nova-micro-v1:0"
 
 bedrock_model = BedrockModel(
     model_id=MODEL_ID,
+    region_name=aws_region,
     temperature=0.4,
     streaming=False,
 )

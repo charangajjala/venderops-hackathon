@@ -10,7 +10,7 @@ help:
 	@echo "docker-restart-local         Rebuild and restart the local Docker stack"
 
 docker-run-local:
-	$(COMPOSE) up --build --pull never -d
+	$(COMPOSE) up --build --pull missing -d
 
 docker-stop-local:
 	$(COMPOSE) down
