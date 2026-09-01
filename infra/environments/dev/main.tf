@@ -38,3 +38,13 @@ module "dynamodb" {
   environment = var.environment
   vendors     = var.vendors
 }
+
+module "dns" {
+  source = "../../modules/dns"
+
+  cloudflare_zone_id            = var.cloudflare_zone_id
+  domain                        = var.ses_domain
+  ses_domain_verification_token = module.messaging.ses_domain_verification_token
+  ses_dkim_tokens               = module.messaging.ses_dkim_tokens
+  ses_mx_target                 = "inbound-smtp.${var.aws_region}.amazonaws.com"
+}
