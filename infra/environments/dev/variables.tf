@@ -26,3 +26,15 @@ variable "monthly_budget_usd" {
   type        = number
   default     = 45
 }
+
+variable "ses_domain" {
+  description = "Domain SES receives mail for."
+  type        = string
+  default     = "pixelbuffer.com"
+}
+
+variable "receipt_rule_recipients" {
+  description = "Addresses or domains the SES receipt rule matches."
+  type        = list(string)
+  default     = ["pixelbuffer.com"]
+}
