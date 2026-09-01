@@ -44,3 +44,9 @@ variable "dlq_max_receive_count" {
   type    = number
   default = 5
 }
+
+variable "sandbox_test_recipients" {
+  description = "Email addresses to verify as individual SES identities. While the account is in sandbox mode, SES can only send to verified addresses/domains - this lets outbound replies reach these test recipients without waiting on SES production access."
+  type        = list(string)
+  default     = []
+}
