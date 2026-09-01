@@ -29,6 +29,7 @@ module "messaging" {
   ses_domain              = var.ses_domain
   receipt_rule_recipients = var.receipt_rule_recipients
   raw_emails_bucket_name  = module.storage.raw_emails_bucket_name
+  sandbox_test_recipients = var.alert_emails
 }
 
 module "dynamodb" {

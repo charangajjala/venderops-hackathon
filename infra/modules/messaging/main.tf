@@ -10,6 +10,11 @@ resource "aws_ses_domain_dkim" "this" {
   domain = aws_ses_domain_identity.this.domain
 }
 
+resource "aws_ses_email_identity" "sandbox_test_recipients" {
+  for_each = toset(var.sandbox_test_recipients)
+  email    = each.value
+}
+
 resource "aws_sns_topic" "inbound_email" {
   name = "${local.name_prefix}-inbound-email"
 
