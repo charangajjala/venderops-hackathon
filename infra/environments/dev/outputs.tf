@@ -33,3 +33,35 @@ output "inbound_email_queue_arn" {
 output "inbound_email_dlq_url" {
   value = module.messaging.inbound_email_dlq_url
 }
+
+output "inventory_table_name" {
+  value = module.dynamodb.inventory_table_name
+}
+
+output "vendors_table_name" {
+  value = module.dynamodb.vendors_table_name
+}
+
+output "vendor_stock_table_names" {
+  value = module.dynamodb.vendor_stock_table_names
+}
+
+output "rfqs_table_name" {
+  value = module.dynamodb.rfqs_table_name
+}
+
+output "open_rfqs_table_name" {
+  value = module.dynamodb.open_rfqs_table_name
+}
+
+output "quotes_table_name" {
+  value = module.dynamodb.quotes_table_name
+}
+
+output "purchase_orders_table_name" {
+  value = module.dynamodb.purchase_orders_table_name
+}
+
+output "idempotency_table_name" {
+  value = module.dynamodb.idempotency_table_name
+}

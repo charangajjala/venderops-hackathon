@@ -30,3 +30,11 @@ module "messaging" {
   receipt_rule_recipients = var.receipt_rule_recipients
   raw_emails_bucket_name  = module.storage.raw_emails_bucket_name
 }
+
+module "dynamodb" {
+  source = "../../modules/dynamodb"
+
+  project     = var.project
+  environment = var.environment
+  vendors     = var.vendors
+}

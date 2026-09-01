@@ -38,3 +38,9 @@ variable "receipt_rule_recipients" {
   type        = list(string)
   default     = ["pixelbuffer.com"]
 }
+
+variable "vendors" {
+  description = "Vendor identifiers, each gets its own VendorStock DynamoDB table."
+  type        = list(string)
+  default     = ["cascade-packaging", "green-valley-dairy", "sunrise-farms"]
+}
