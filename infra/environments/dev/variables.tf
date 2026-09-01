@@ -28,15 +28,20 @@ variable "monthly_budget_usd" {
 }
 
 variable "ses_domain" {
-  description = "Domain SES receives mail for."
+  description = "Domain SES receives mail for. pixelbuffer.club (not pixelbuffer.com - that domain is on EasyDNS with unrelated live mail/hosting we don't control). pixelbuffer.club is registered at Spaceship and delegated to Cloudflare, has no existing email setup, so the bare domain is used directly."
   type        = string
-  default     = "pixelbuffer.com"
+  default     = "pixelbuffer.club"
 }
 
 variable "receipt_rule_recipients" {
   description = "Addresses or domains the SES receipt rule matches."
   type        = list(string)
-  default     = ["pixelbuffer.com"]
+  default     = ["pixelbuffer.club"]
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare zone ID for pixelbuffer.club, used to create the SES verification/DKIM/MX DNS records there."
+  type        = string
 }
 
 variable "vendors" {
