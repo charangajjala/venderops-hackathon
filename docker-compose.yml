@@ -22,6 +22,7 @@ services:
       PROJECT: ${PROJECT:-vendorops}
       ENVIRONMENT: ${ENVIRONMENT:-dev}
       AGENT_SESSIONS_BUCKET: ${AGENT_SESSIONS_BUCKET:-vendorops-dev-agent-sessions}
+      ENABLE_OTLP_EXPORT: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: vendorops-agent
