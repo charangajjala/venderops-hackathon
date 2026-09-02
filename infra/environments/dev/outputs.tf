@@ -65,3 +65,19 @@ output "purchase_orders_table_name" {
 output "idempotency_table_name" {
   value = module.dynamodb.idempotency_table_name
 }
+
+output "agentcore_ecr_repository_url" {
+  value = module.agentcore.ecr_repository_url
+}
+
+output "agentcore_agent_runtime_arn" {
+  value = module.agentcore.agent_runtime_arn
+}
+
+output "agentcore_runtime_role_arn" {
+  value = module.agentcore.runtime_role_arn
+}
+
+output "reorder_checker_function_name" {
+  value = module.compute.reorder_checker_function_name
+}

@@ -13,6 +13,9 @@ from vendorops_agent.db import (
 
 SKU = "milk-1l-organic"
 
+# contact_email points at SES-verified test addresses, not real vendor inboxes -
+# SES is still in sandbox mode (production access denied), so it can only send
+# to verified recipients regardless of who a real vendor would be.
 VENDORS = [
     {
         "vendor_id": "cascade-packaging",
@@ -21,6 +24,7 @@ VENDORS = [
         "trusted": True,
         "reliability_score": Decimal("0.9"),
         "location": "Portland, OR",
+        "contact_email": "charangajjala7@gmail.com",
         "stock": {SKU: 0},
     },
     {
@@ -30,6 +34,7 @@ VENDORS = [
         "trusted": True,
         "reliability_score": Decimal("0.85"),
         "location": "Madison, WI",
+        "contact_email": "jampuramprem01@gmail.com",
         "stock": {SKU: 200},
     },
     {
@@ -39,6 +44,7 @@ VENDORS = [
         "trusted": False,
         "reliability_score": Decimal("0.5"),
         "location": "Fresno, CA",
+        "contact_email": "jampuramprem01@gmail.com",
         "stock": {SKU: 150},
     },
 ]
