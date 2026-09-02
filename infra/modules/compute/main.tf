@@ -67,10 +67,13 @@ data "aws_iam_policy_document" "reorder_checker_permissions" {
   }
 
   statement {
-    sid       = "InvokeAgentRuntime"
-    effect    = "Allow"
-    actions   = ["bedrock-agentcore:InvokeAgentRuntime"]
-    resources = [var.agent_runtime_arn]
+    sid     = "InvokeAgentRuntime"
+    effect  = "Allow"
+    actions = ["bedrock-agentcore:InvokeAgentRuntime"]
+    resources = [
+      var.agent_runtime_arn,
+      "${var.agent_runtime_arn}/runtime-endpoint/*",
+    ]
   }
 }
 
@@ -85,7 +88,7 @@ resource "aws_lambda_function" "reorder_checker" {
   role             = aws_iam_role.reorder_checker.arn
   handler          = "handler.handler"
   runtime          = "python3.13"
-  timeout          = 30
+  timeout          = 120
   filename         = data.archive_file.reorder_checker.output_path
   source_code_hash = data.archive_file.reorder_checker.output_base64sha256
 
