@@ -57,7 +57,7 @@ module "agentcore" {
   environment               = var.environment
   aws_region                = var.aws_region
   agent_sessions_bucket_arn = module.storage.agent_sessions_bucket_arn
-  image_tag                 = "v3"
+  image_tag                 = "v4"
 }
 
 module "compute" {
