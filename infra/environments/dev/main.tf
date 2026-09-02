@@ -17,6 +17,10 @@ module "observability" {
   environment        = var.environment
   alert_emails       = var.alert_emails
   monthly_budget_usd = var.monthly_budget_usd
+
+  dlq_names             = [module.messaging.inbound_email_dlq_name]
+  backlog_queues        = [module.messaging.inbound_email_queue_name]
+  lambda_function_names = [module.compute.reorder_checker_function_name, module.compute.service_function_name]
 }
 
 module "messaging" {
@@ -57,7 +61,7 @@ module "agentcore" {
   environment               = var.environment
   aws_region                = var.aws_region
   agent_sessions_bucket_arn = module.storage.agent_sessions_bucket_arn
-  image_tag                 = "v4"
+  image_tag                 = "v5"
 }
 
 module "compute" {

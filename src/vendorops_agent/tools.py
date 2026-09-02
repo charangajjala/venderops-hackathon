@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
+from botocore.exceptions import ClientError
 from strands import tool
 
 from vendorops_agent.db import (
@@ -198,10 +199,32 @@ def create_purchase_order(rfq_id: str, quote_id: str, vendor_id: str, unit_price
     trusted vendor's quote. Writes the PO, marks the RFQ awarded, closes the
     SKU's open-RFQ slot (so a future threshold crossing can trigger a fresh
     reorder), and emails the vendor a PO confirmation. For an untrusted
-    vendor's quote, use notify_buyer to escalate instead - do not call this."""
-    rfq = _table(RFQS_TABLE).get_item(Key={"rfq_id": rfq_id}).get("Item")
+    vendor's quote, use notify_buyer to escalate instead - do not call this.
+    If a PO was already issued for this RFQ (e.g. a retried call), returns
+    without creating a second one."""
+    rfq_table = _table(RFQS_TABLE)
+    rfq = rfq_table.get_item(Key={"rfq_id": rfq_id}).get("Item")
     if rfq is None:
         return {"created": False, "reason": f"no RFQ found for rfq_id {rfq_id}"}
+
+    if rfq.get("status") == "awarded":
+        return {"created": False, "reason": f"a purchase order was already issued for RFQ {rfq_id}"}
+
+    try:
+        rfq_table.update_item(
+            Key={"rfq_id": rfq_id},
+            UpdateExpression="SET #s = :awarded",
+            ConditionExpression="attribute_not_exists(#s) OR #s <> :awarded",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={":awarded": "awarded"},
+        )
+    except ClientError as exc:
+        if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return {
+                "created": False,
+                "reason": f"a purchase order was already issued for RFQ {rfq_id} (concurrent claim)",
+            }
+        raise
 
     vendor = _table(VENDORS_TABLE).get_item(Key={"vendor_id": vendor_id}).get("Item") or {
         "vendor_id": vendor_id
@@ -222,12 +245,6 @@ def create_purchase_order(rfq_id: str, quote_id: str, vendor_id: str, unit_price
         "issued_at": datetime.now(timezone.utc).isoformat(),
     }
     _table(PURCHASE_ORDERS_TABLE).put_item(Item=po)
-    _table(RFQS_TABLE).update_item(
-        Key={"rfq_id": rfq_id},
-        UpdateExpression="SET #s = :s",
-        ExpressionAttributeNames={"#s": "status"},
-        ExpressionAttributeValues={":s": "awarded"},
-    )
     if rfq.get("sku"):
         _table(OPEN_RFQS_TABLE).delete_item(Key={"sku": rfq["sku"]})
 
