@@ -24,7 +24,7 @@ VENDORS = [
         "trusted": True,
         "reliability_score": Decimal("0.9"),
         "location": "Portland, OR",
-        "contact_email": "charangajjala7@gmail.com",
+        "contact_email": "jampuramprem03@gmail.com",
         "stock": {SKU: 0},
     },
     {
@@ -44,7 +44,7 @@ VENDORS = [
         "trusted": False,
         "reliability_score": Decimal("0.5"),
         "location": "Fresno, CA",
-        "contact_email": "jampuramprem01@gmail.com",
+        "contact_email": "jampuramprem04@gmail.com",
         "stock": {SKU: 150},
     },
 ]
