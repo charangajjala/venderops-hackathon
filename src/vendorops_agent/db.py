@@ -26,6 +26,7 @@ VENDOR_STOCK_TABLE_PREFIX = os.environ.get(
 AGENT_SESSIONS_BUCKET = os.environ.get("AGENT_SESSIONS_BUCKET", f"{_NAME_PREFIX}-agent-sessions")
 
 SES_SENDER_ADDRESS = os.environ.get("SES_SENDER_ADDRESS", "rfqs@pixelbuffer.club")
+BUYER_EMAIL = os.environ.get("BUYER_EMAIL", "jampuramprem01@gmail.com")
 
 
 def vendor_stock_table_name(vendor_id: str) -> str:

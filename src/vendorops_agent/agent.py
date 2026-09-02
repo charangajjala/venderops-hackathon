@@ -13,9 +13,14 @@ from vendorops_agent.db import AGENT_SESSIONS_BUCKET
 from vendorops_agent.telemetry import setup_telemetry
 from vendorops_agent.tools import (
     check_vendor_stock,
+    create_purchase_order,
     create_rfq,
     get_inventory_status,
+    get_rfq,
+    get_vendor,
     list_candidate_vendors,
+    notify_buyer,
+    record_quote,
 )
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
@@ -54,17 +59,39 @@ SYSTEM_PROMPT = (
     "MOQ, lead time, Incoterms, payment terms, purchase orders, change orders, "
     "partial shipments, RMAs, vendor onboarding, trusted-vendor status, and "
     "reliability scores. "
-    "When a SKU needs reordering: call list_candidate_vendors to get vendors "
+    "\n\n"
+    "Reordering a low-stock SKU: call list_candidate_vendors to get vendors "
     "ranked by trust, then call check_vendor_stock on each in order until one "
     "has enough stock - do not send an RFQ to a vendor before confirming they "
     "can fulfill it. Once a vendor with sufficient stock is found, call "
     "create_rfq against that vendor. If no candidate vendor has enough stock, "
-    "say so plainly rather than guessing or inventing availability. Be "
-    "concise, accurate, and operational. When a request is ambiguous, ask a "
-    "short clarifying question."
+    "say so plainly rather than guessing or inventing availability. "
+    "\n\n"
+    "Processing a vendor's reply to an RFQ: if the message references an RFQ "
+    "id, call get_rfq to load it and get_vendor to check whether the sender is "
+    "trusted. Read the price, quantity, and lead time out of their reply and "
+    "call record_quote. If the vendor is trusted, call create_purchase_order "
+    "to auto-issue the PO. If the vendor is not trusted, or the reply is "
+    "missing key terms, do NOT issue a PO - call notify_buyer instead with a "
+    "short, concrete question about the actual tradeoff (e.g. price vs. an "
+    "unproven vendor), and let the buyer decide. Never guess at missing quote "
+    "details. "
+    "\n\n"
+    "Be concise, accurate, and operational. When a request is ambiguous, ask "
+    "a short clarifying question."
 )
 
-TOOLS = [get_inventory_status, list_candidate_vendors, check_vendor_stock, create_rfq]
+TOOLS = [
+    get_inventory_status,
+    list_candidate_vendors,
+    check_vendor_stock,
+    create_rfq,
+    get_rfq,
+    get_vendor,
+    record_quote,
+    create_purchase_order,
+    notify_buyer,
+]
 
 app = BedrockAgentCoreApp()
 agent = Agent(model=bedrock_model, system_prompt=SYSTEM_PROMPT, tools=TOOLS)

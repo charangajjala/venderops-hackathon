@@ -25,3 +25,23 @@ variable "agent_runtime_arn" {
 variable "lambda_source_dir" {
   type = string
 }
+
+variable "raw_emails_bucket_name" {
+  type = string
+}
+
+variable "raw_emails_bucket_arn" {
+  type = string
+}
+
+variable "inbound_email_queue_arn" {
+  type = string
+}
+
+variable "idempotency_table_name" {
+  type = string
+}
+
+variable "service_lambda_source_dir" {
+  type = string
+}

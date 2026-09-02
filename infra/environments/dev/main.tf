@@ -57,7 +57,7 @@ module "agentcore" {
   environment               = var.environment
   aws_region                = var.aws_region
   agent_sessions_bucket_arn = module.storage.agent_sessions_bucket_arn
-  image_tag                 = "v2"
+  image_tag                 = "v3"
 }
 
 module "compute" {
@@ -70,4 +70,9 @@ module "compute" {
   open_rfqs_table_name       = module.dynamodb.open_rfqs_table_name
   agent_runtime_arn          = module.agentcore.agent_runtime_arn
   lambda_source_dir          = "${path.module}/../../../lambda_functions/reorder_checker"
+  raw_emails_bucket_name     = module.storage.raw_emails_bucket_name
+  raw_emails_bucket_arn      = module.storage.raw_emails_bucket_arn
+  inbound_email_queue_arn    = module.messaging.inbound_email_queue_arn
+  idempotency_table_name     = module.dynamodb.idempotency_table_name
+  service_lambda_source_dir  = "${path.module}/../../../lambda_functions/service"
 }
