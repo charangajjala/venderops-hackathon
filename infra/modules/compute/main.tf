@@ -111,3 +111,112 @@ resource "aws_lambda_event_source_mapping" "inventory_stream" {
   starting_position = "LATEST"
   batch_size        = 10
 }
+
+data "archive_file" "service" {
+  type        = "zip"
+  source_dir  = var.service_lambda_source_dir
+  output_path = "${path.module}/build/service.zip"
+}
+
+data "aws_iam_policy_document" "service_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "service" {
+  name               = "${local.name_prefix}-service"
+  assume_role_policy = data.aws_iam_policy_document.service_assume_role.json
+}
+
+data "aws_iam_policy_document" "service_permissions" {
+  statement {
+    sid    = "Logs"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "SqsConsume"
+    effect = "Allow"
+    actions = [
+      "sqs:ReceiveMessage",
+      "sqs:DeleteMessage",
+      "sqs:GetQueueAttributes",
+    ]
+    resources = [var.inbound_email_queue_arn]
+  }
+
+  statement {
+    sid       = "ReadRawEmails"
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${var.raw_emails_bucket_arn}/*"]
+  }
+
+  statement {
+    sid    = "IdempotencyTable"
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+    ]
+    resources = ["arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.idempotency_table_name}"]
+  }
+
+  statement {
+    sid     = "InvokeAgentRuntime"
+    effect  = "Allow"
+    actions = ["bedrock-agentcore:InvokeAgentRuntime"]
+    resources = [
+      var.agent_runtime_arn,
+      "${var.agent_runtime_arn}/runtime-endpoint/*",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "service" {
+  name   = "${local.name_prefix}-service"
+  role   = aws_iam_role.service.id
+  policy = data.aws_iam_policy_document.service_permissions.json
+}
+
+resource "aws_lambda_function" "service" {
+  function_name    = "${local.name_prefix}-service"
+  role             = aws_iam_role.service.arn
+  handler          = "handler.handler"
+  runtime          = "python3.13"
+  timeout          = 120
+  filename         = data.archive_file.service.output_path
+  source_code_hash = data.archive_file.service.output_base64sha256
+
+  environment {
+    variables = {
+      RAW_EMAILS_BUCKET = var.raw_emails_bucket_name
+      AGENT_RUNTIME_ARN = var.agent_runtime_arn
+      IDEMPOTENCY_TABLE = var.idempotency_table_name
+    }
+  }
+
+  tags = {
+    Name      = "${local.name_prefix}-service"
+    Component = "email-processing"
+  }
+}
+
+resource "aws_lambda_event_source_mapping" "inbound_email_queue" {
+  event_source_arn = var.inbound_email_queue_arn
+  function_name    = aws_lambda_function.service.arn
+  batch_size       = 1
+}

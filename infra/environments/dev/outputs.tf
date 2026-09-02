@@ -81,3 +81,7 @@ output "agentcore_runtime_role_arn" {
 output "reorder_checker_function_name" {
   value = module.compute.reorder_checker_function_name
 }
+
+output "service_function_name" {
+  value = module.compute.service_function_name
+}

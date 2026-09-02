@@ -4,8 +4,11 @@ from uuid import uuid4
 from strands import tool
 
 from vendorops_agent.db import (
+    BUYER_EMAIL,
     INVENTORY_TABLE,
     OPEN_RFQS_TABLE,
+    PURCHASE_ORDERS_TABLE,
+    QUOTES_TABLE,
     RFQS_TABLE,
     SES_SENDER_ADDRESS,
     VENDORS_TABLE,
@@ -17,6 +20,23 @@ from vendorops_agent.db import (
 
 def _table(name: str):
     return dynamodb_resource().Table(name)
+
+
+def _send_email(to_address: str, subject: str, body: str) -> dict:
+    if not to_address:
+        return {"sent": False, "reason": "no recipient address given"}
+    try:
+        ses_client().send_email(
+            Source=SES_SENDER_ADDRESS,
+            Destination={"ToAddresses": [to_address]},
+            Message={
+                "Subject": {"Data": subject},
+                "Body": {"Text": {"Data": body}},
+            },
+        )
+        return {"sent": True, "to": to_address}
+    except Exception as exc:
+        return {"sent": False, "reason": str(exc)}
 
 
 @tool
@@ -41,6 +61,17 @@ def list_candidate_vendors(sku: str) -> list[dict]:
         reverse=True,
     )
     return approved
+
+
+@tool
+def get_vendor(vendor_id: str) -> dict:
+    """Look up a single vendor's record - name, contact_email, trusted status,
+    reliability_score. Use this when processing a vendor's reply to know who
+    they are and whether they're trusted enough to auto-approve a PO for."""
+    item = _table(VENDORS_TABLE).get_item(Key={"vendor_id": vendor_id}).get("Item")
+    if item is None:
+        return {"found": False, "vendor_id": vendor_id}
+    return {"found": True, **item}
 
 
 @tool
@@ -78,35 +109,6 @@ def check_vendor_stock(vendor_id: str, sku: str, quantity: int) -> dict:
     }
 
 
-def _send_rfq_email(rfq_id: str, sku: str, quantity: int, vendor: dict) -> dict:
-    contact_email = vendor.get("contact_email")
-    if not contact_email:
-        return {"sent": False, "reason": f"vendor {vendor.get('vendor_id')} has no contact_email on file"}
-
-    vendor_name = vendor.get("name", vendor.get("vendor_id"))
-    body = (
-        f"Hi {vendor_name},\n\n"
-        f"We'd like to request a quote for the following:\n\n"
-        f"  SKU: {sku}\n"
-        f"  Quantity: {quantity}\n\n"
-        f"Please reply to this email with your price, lead time, and MOQ.\n\n"
-        f"Reference: RFQ {rfq_id}\n"
-    )
-
-    try:
-        ses_client().send_email(
-            Source=SES_SENDER_ADDRESS,
-            Destination={"ToAddresses": [contact_email]},
-            Message={
-                "Subject": {"Data": f"RFQ {rfq_id[:8]} - {sku} x{quantity}"},
-                "Body": {"Text": {"Data": body}},
-            },
-        )
-        return {"sent": True, "to": contact_email}
-    except Exception as exc:
-        return {"sent": False, "reason": str(exc)}
-
-
 @tool
 def create_rfq(sku: str, quantity: int, vendor_id: str) -> dict:
     """Create an RFQ for a SKU against a vendor who has confirmed sufficient
@@ -137,6 +139,113 @@ def create_rfq(sku: str, quantity: int, vendor_id: str) -> dict:
     _table(RFQS_TABLE).put_item(Item=rfq)
     open_rfqs.put_item(Item={"sku": sku, "rfq_id": rfq_id, "vendor_id": vendor_id})
 
-    email_result = _send_rfq_email(rfq_id, sku, quantity, vendor)
+    vendor_name = vendor.get("name", vendor_id)
+    body = (
+        f"Hi {vendor_name},\n\n"
+        f"We'd like to request a quote for the following:\n\n"
+        f"  SKU: {sku}\n"
+        f"  Quantity: {quantity}\n\n"
+        f"Please reply to this email with your price, lead time, and MOQ.\n\n"
+        f"Reference: RFQ {rfq_id}\n"
+    )
+    email_result = _send_email(vendor.get("contact_email"), f"RFQ {rfq_id} - {sku} x{quantity}", body)
 
     return {"created": True, "email": email_result, **rfq}
+
+
+@tool
+def get_rfq(rfq_id: str) -> dict:
+    """Look up an RFQ by its full id - use this when a vendor's reply
+    references an RFQ id, to get the SKU/quantity/status it was for."""
+    item = _table(RFQS_TABLE).get_item(Key={"rfq_id": rfq_id}).get("Item")
+    if item is None:
+        return {"found": False, "rfq_id": rfq_id}
+    return {"found": True, **item}
+
+
+@tool
+def record_quote(
+    rfq_id: str,
+    vendor_id: str,
+    unit_price: float,
+    quantity: int,
+    lead_time_days: int,
+    moq: int | None = None,
+    warranty_terms: str | None = None,
+) -> dict:
+    """Record a vendor's quote reply to an RFQ. Call this once you've read the
+    price/quantity/lead time out of the vendor's email, before deciding
+    whether to auto-approve or escalate."""
+    quote_id = str(uuid4())
+    quote = {
+        "quote_id": quote_id,
+        "rfq_id": rfq_id,
+        "vendor_id": vendor_id,
+        "unit_price": str(unit_price),
+        "quantity": quantity,
+        "lead_time_days": lead_time_days,
+        "moq": moq,
+        "warranty_terms": warranty_terms,
+        "received_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _table(QUOTES_TABLE).put_item(Item={k: v for k, v in quote.items() if v is not None})
+    return quote
+
+
+@tool
+def create_purchase_order(rfq_id: str, quote_id: str, vendor_id: str, unit_price: float, quantity: int) -> dict:
+    """Issue a purchase order from an approved quote: only call this for a
+    trusted vendor's quote. Writes the PO, marks the RFQ awarded, closes the
+    SKU's open-RFQ slot (so a future threshold crossing can trigger a fresh
+    reorder), and emails the vendor a PO confirmation. For an untrusted
+    vendor's quote, use notify_buyer to escalate instead - do not call this."""
+    rfq = _table(RFQS_TABLE).get_item(Key={"rfq_id": rfq_id}).get("Item")
+    if rfq is None:
+        return {"created": False, "reason": f"no RFQ found for rfq_id {rfq_id}"}
+
+    vendor = _table(VENDORS_TABLE).get_item(Key={"vendor_id": vendor_id}).get("Item") or {
+        "vendor_id": vendor_id
+    }
+
+    po_id = str(uuid4())
+    total_price = unit_price * quantity
+    po = {
+        "po_id": po_id,
+        "rfq_id": rfq_id,
+        "quote_id": quote_id,
+        "vendor_id": vendor_id,
+        "sku": rfq.get("sku"),
+        "quantity": quantity,
+        "unit_price": str(unit_price),
+        "total_price": str(total_price),
+        "status": "issued",
+        "issued_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _table(PURCHASE_ORDERS_TABLE).put_item(Item=po)
+    _table(RFQS_TABLE).update_item(
+        Key={"rfq_id": rfq_id},
+        UpdateExpression="SET #s = :s",
+        ExpressionAttributeNames={"#s": "status"},
+        ExpressionAttributeValues={":s": "awarded"},
+    )
+    if rfq.get("sku"):
+        _table(OPEN_RFQS_TABLE).delete_item(Key={"sku": rfq["sku"]})
+
+    vendor_name = vendor.get("name", vendor_id)
+    body = (
+        f"Hi {vendor_name},\n\n"
+        f"Confirming purchase order for {quantity} x {rfq.get('sku')} at "
+        f"${unit_price}/unit (total ${total_price}).\n\n"
+        f"PO reference: {po_id}\n"
+    )
+    email_result = _send_email(vendor.get("contact_email"), f"PO {po_id} confirmation", body)
+
+    return {"created": True, "email": email_result, **po}
+
+
+@tool
+def notify_buyer(subject: str, body: str) -> dict:
+    """Send a short escalation notification to the buyer - use this when a
+    tradeoff or anomaly needs a human decision (e.g. an untrusted vendor's
+    quote came in), instead of auto-issuing a purchase order."""
+    return _send_email(BUYER_EMAIL, subject, body)
