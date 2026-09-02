@@ -45,3 +45,8 @@ variable "idempotency_table_name" {
 variable "service_lambda_source_dir" {
   type = string
 }
+
+variable "log_retention_days" {
+  type    = number
+  default = 14
+}

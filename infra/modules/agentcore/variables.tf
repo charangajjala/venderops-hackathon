@@ -18,3 +18,14 @@ variable "image_tag" {
   type    = string
   default = "latest"
 }
+
+variable "ecr_keep_image_count" {
+  description = "Number of most-recent tagged images to keep in ECR before older ones expire."
+  type        = number
+  default     = 5
+}
+
+variable "log_retention_days" {
+  type    = number
+  default = 14
+}

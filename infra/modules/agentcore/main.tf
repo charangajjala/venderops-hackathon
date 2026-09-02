@@ -14,6 +14,37 @@ resource "aws_ecr_repository" "agent" {
   }
 }
 
+resource "aws_ecr_lifecycle_policy" "agent" {
+  repository = aws_ecr_repository.agent.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Expire untagged images after 1 day - they're leftovers from a retag/push, nothing references them by digest."
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
+        }
+        action = { type = "expire" }
+      },
+      {
+        rulePriority = 2
+        description  = "Keep only the most recent ${var.ecr_keep_image_count} tagged images - older ones are superseded deploys, not needed once the runtime has moved past them."
+        selection = {
+          tagStatus     = "tagged"
+          tagPrefixList = ["v"]
+          countType     = "imageCountMoreThan"
+          countNumber   = var.ecr_keep_image_count
+        }
+        action = { type = "expire" }
+      }
+    ]
+  })
+}
+
 data "aws_iam_policy_document" "assume_role" {
   statement {
     effect  = "Allow"
@@ -133,4 +164,19 @@ resource "aws_bedrockagentcore_agent_runtime" "vendorops" {
   network_configuration {
     network_mode = "PUBLIC"
   }
+}
+
+resource "aws_cloudwatch_log_group" "agentcore_runtime" {
+  name              = "/aws/bedrock-agentcore/runtimes/${aws_bedrockagentcore_agent_runtime.vendorops.agent_runtime_id}-DEFAULT"
+  retention_in_days = var.log_retention_days
+
+  tags = {
+    Name      = "${local.name_prefix}-agentcore-runtime-logs"
+    Component = "agentcore-runtime"
+  }
+}
+
+import {
+  to = aws_cloudwatch_log_group.agentcore_runtime
+  id = "/aws/bedrock-agentcore/runtimes/${aws_bedrockagentcore_agent_runtime.vendorops.agent_runtime_id}-DEFAULT"
 }

@@ -220,3 +220,33 @@ resource "aws_lambda_event_source_mapping" "inbound_email_queue" {
   function_name    = aws_lambda_function.service.arn
   batch_size       = 1
 }
+
+resource "aws_cloudwatch_log_group" "reorder_checker" {
+  name              = "/aws/lambda/${aws_lambda_function.reorder_checker.function_name}"
+  retention_in_days = var.log_retention_days
+
+  tags = {
+    Name      = "${local.name_prefix}-reorder-checker-logs"
+    Component = "reorder-trigger"
+  }
+}
+
+import {
+  to = aws_cloudwatch_log_group.reorder_checker
+  id = "/aws/lambda/${local.name_prefix}-reorder-checker"
+}
+
+resource "aws_cloudwatch_log_group" "service" {
+  name              = "/aws/lambda/${aws_lambda_function.service.function_name}"
+  retention_in_days = var.log_retention_days
+
+  tags = {
+    Name      = "${local.name_prefix}-service-logs"
+    Component = "email-processing"
+  }
+}
+
+import {
+  to = aws_cloudwatch_log_group.service
+  id = "/aws/lambda/${local.name_prefix}-service"
+}
