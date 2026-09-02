@@ -27,3 +27,32 @@ variable "cloudwatch_billing_alarm_thresholds_usd" {
   type        = list(number)
   default     = [10, 25, 40]
 }
+
+variable "dlq_names" {
+  description = "Bare SQS queue names of dead-letter queues to alarm on (ApproximateNumberOfMessagesVisible > 0 - a poison message that exhausted its retries and nobody would otherwise notice)."
+  type        = list(string)
+  default     = []
+}
+
+variable "backlog_queues" {
+  description = "Bare SQS queue names to alarm on when messages sit unprocessed too long (ApproximateAgeOfOldestMessage), meaning the consumer has stopped keeping up."
+  type        = list(string)
+  default     = []
+}
+
+variable "backlog_age_threshold_seconds" {
+  type    = number
+  default = 300
+}
+
+variable "lambda_function_names" {
+  description = "Lambda function names to alarm on for a nonzero Errors count."
+  type        = list(string)
+  default     = []
+}
+
+variable "enable_ses_alarms" {
+  description = "Whether to alarm on SES Bounce/Complaint (account-wide metrics - only enable once real inbound/outbound traffic exists, or a single test bounce trips it)."
+  type        = bool
+  default     = true
+}
