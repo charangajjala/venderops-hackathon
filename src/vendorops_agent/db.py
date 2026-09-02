@@ -25,11 +25,20 @@ VENDOR_STOCK_TABLE_PREFIX = os.environ.get(
 
 AGENT_SESSIONS_BUCKET = os.environ.get("AGENT_SESSIONS_BUCKET", f"{_NAME_PREFIX}-agent-sessions")
 
+SES_SENDER_ADDRESS = os.environ.get("SES_SENDER_ADDRESS", "rfqs@pixelbuffer.club")
+
 
 def vendor_stock_table_name(vendor_id: str) -> str:
     return f"{VENDOR_STOCK_TABLE_PREFIX}{vendor_id}"
 
 
+def _region() -> str:
+    return os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
+
+
 def dynamodb_resource():
-    region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
-    return boto3.resource("dynamodb", region_name=region)
+    return boto3.resource("dynamodb", region_name=_region())
+
+
+def ses_client():
+    return boto3.client("ses", region_name=_region())

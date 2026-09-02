@@ -7,8 +7,10 @@ from vendorops_agent.db import (
     INVENTORY_TABLE,
     OPEN_RFQS_TABLE,
     RFQS_TABLE,
+    SES_SENDER_ADDRESS,
     VENDORS_TABLE,
     dynamodb_resource,
+    ses_client,
     vendor_stock_table_name,
 )
 
@@ -76,15 +78,50 @@ def check_vendor_stock(vendor_id: str, sku: str, quantity: int) -> dict:
     }
 
 
+def _send_rfq_email(rfq_id: str, sku: str, quantity: int, vendor: dict) -> dict:
+    contact_email = vendor.get("contact_email")
+    if not contact_email:
+        return {"sent": False, "reason": f"vendor {vendor.get('vendor_id')} has no contact_email on file"}
+
+    vendor_name = vendor.get("name", vendor.get("vendor_id"))
+    body = (
+        f"Hi {vendor_name},\n\n"
+        f"We'd like to request a quote for the following:\n\n"
+        f"  SKU: {sku}\n"
+        f"  Quantity: {quantity}\n\n"
+        f"Please reply to this email with your price, lead time, and MOQ.\n\n"
+        f"Reference: RFQ {rfq_id}\n"
+    )
+
+    try:
+        ses_client().send_email(
+            Source=SES_SENDER_ADDRESS,
+            Destination={"ToAddresses": [contact_email]},
+            Message={
+                "Subject": {"Data": f"RFQ {rfq_id[:8]} - {sku} x{quantity}"},
+                "Body": {"Text": {"Data": body}},
+            },
+        )
+        return {"sent": True, "to": contact_email}
+    except Exception as exc:
+        return {"sent": False, "reason": str(exc)}
+
+
 @tool
 def create_rfq(sku: str, quantity: int, vendor_id: str) -> dict:
     """Create an RFQ for a SKU against a vendor who has confirmed sufficient
-    stock, and mark it as the SKU's open RFQ. If this SKU already has an open
-    RFQ, returns that existing one instead of creating a duplicate."""
+    stock, mark it as the SKU's open RFQ, and email the vendor's contact
+    address requesting a quote. If this SKU already has an open RFQ, returns
+    that existing one instead of creating a duplicate or sending another
+    email."""
     open_rfqs = _table(OPEN_RFQS_TABLE)
     existing = open_rfqs.get_item(Key={"sku": sku}).get("Item")
     if existing is not None:
         return {"created": False, "reason": "an RFQ is already open for this SKU", **existing}
+
+    vendor = _table(VENDORS_TABLE).get_item(Key={"vendor_id": vendor_id}).get("Item") or {
+        "vendor_id": vendor_id
+    }
 
     rfq_id = str(uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
@@ -100,4 +137,6 @@ def create_rfq(sku: str, quantity: int, vendor_id: str) -> dict:
     _table(RFQS_TABLE).put_item(Item=rfq)
     open_rfqs.put_item(Item={"sku": sku, "rfq_id": rfq_id, "vendor_id": vendor_id})
 
-    return {"created": True, **rfq}
+    email_result = _send_rfq_email(rfq_id, sku, quantity, vendor)
+
+    return {"created": True, "email": email_result, **rfq}
