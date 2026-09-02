@@ -98,3 +98,23 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "agent_sessions" {
     }
   }
 }
+
+resource "aws_s3_bucket_lifecycle_configuration" "agent_sessions" {
+  bucket = aws_s3_bucket.agent_sessions.id
+
+  rule {
+    id     = "transition-then-expire-sessions"
+    status = "Enabled"
+
+    filter {}
+
+    transition {
+      days          = var.agent_session_ia_transition_days
+      storage_class = "STANDARD_IA"
+    }
+
+    expiration {
+      days = var.agent_session_retention_days
+    }
+  }
+}
