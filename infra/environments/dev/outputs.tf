@@ -85,3 +85,24 @@ output "reorder_checker_function_name" {
 output "service_function_name" {
   value = module.compute.service_function_name
 }
+
+output "dashboard_api_endpoint" {
+  value = module.api.api_endpoint
+}
+
+output "dashboard_write_api_key" {
+  value     = random_password.dashboard_write_api_key.result
+  sensitive = true
+}
+
+output "dashboard_bucket_name" {
+  value = module.frontend.bucket_name
+}
+
+output "dashboard_distribution_id" {
+  value = module.frontend.distribution_id
+}
+
+output "dashboard_url" {
+  value = "https://${module.frontend.distribution_domain_name}"
+}

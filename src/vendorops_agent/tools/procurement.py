@@ -6,6 +6,7 @@ from strands import tool
 
 from vendorops_agent.db import (
     BUYER_EMAIL,
+    INVENTORY_TABLE,
     OPEN_RFQS_TABLE,
     PURCHASE_ORDERS_TABLE,
     QUOTES_TABLE,
@@ -103,10 +104,11 @@ def create_purchase_order(rfq_id: str, quote_id: str, vendor_id: str, unit_price
     """Issue a purchase order from an approved quote: only call this for a
     trusted vendor's quote. Writes the PO, marks the RFQ awarded, closes the
     SKU's open-RFQ slot (so a future threshold crossing can trigger a fresh
-    reorder), and emails the vendor a PO confirmation. For an untrusted
-    vendor's quote, use notify_buyer to escalate instead - do not call this.
-    If a PO was already issued for this RFQ (e.g. a retried call), returns
-    without creating a second one."""
+    reorder), restocks the SKU's on-hand quantity (no real shipment tracking,
+    so the order is treated as received immediately), and emails the vendor a
+    PO confirmation. For an untrusted vendor's quote, use notify_buyer to
+    escalate instead - do not call this. If a PO was already issued for this
+    RFQ (e.g. a retried call), returns without creating a second one."""
     rfq_table = _table(RFQS_TABLE)
     rfq = rfq_table.get_item(Key={"rfq_id": rfq_id}).get("Item")
     if rfq is None:
@@ -152,6 +154,11 @@ def create_purchase_order(rfq_id: str, quote_id: str, vendor_id: str, unit_price
     _table(PURCHASE_ORDERS_TABLE).put_item(Item=po)
     if rfq.get("sku"):
         _table(OPEN_RFQS_TABLE).delete_item(Key={"sku": rfq["sku"]})
+        _table(INVENTORY_TABLE).update_item(
+            Key={"sku": rfq["sku"]},
+            UpdateExpression="ADD quantity_on_hand :qty",
+            ExpressionAttributeValues={":qty": quantity},
+        )
 
     vendor_name = vendor.get("name", vendor_id)
     body = (
