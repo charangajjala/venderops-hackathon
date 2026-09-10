@@ -32,12 +32,12 @@ resource "aws_ecr_lifecycle_policy" "agent" {
       },
       {
         rulePriority = 2
-        description  = "Keep only the most recent ${var.ecr_keep_image_count} tagged images - older ones are superseded deploys, not needed once the runtime has moved past them."
+        description  = "Keep only the most recent ${var.ecr_keep_image_count} tagged images (any tag, including the old 'latest' tag from before every push was version-tagged) - older ones are superseded deploys, not needed once the runtime has moved past them."
         selection = {
-          tagStatus     = "tagged"
-          tagPrefixList = ["v"]
-          countType     = "imageCountMoreThan"
-          countNumber   = var.ecr_keep_image_count
+          tagStatus      = "tagged"
+          tagPatternList = ["*"]
+          countType      = "imageCountMoreThan"
+          countNumber    = var.ecr_keep_image_count
         }
         action = { type = "expire" }
       }

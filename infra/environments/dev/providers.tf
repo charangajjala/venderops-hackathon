@@ -13,6 +13,9 @@ terraform {
     archive = {
       source = "hashicorp/archive"
     }
+    random = {
+      source = "hashicorp/random"
+    }
   }
 
   backend "s3" {

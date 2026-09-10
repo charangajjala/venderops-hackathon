@@ -61,7 +61,35 @@ module "agentcore" {
   environment               = var.environment
   aws_region                = var.aws_region
   agent_sessions_bucket_arn = module.storage.agent_sessions_bucket_arn
-  image_tag                 = "v6"
+  image_tag                 = "v7"
+}
+
+resource "random_password" "dashboard_write_api_key" {
+  length  = 32
+  special = false
+}
+
+module "api" {
+  source = "../../modules/api"
+
+  project                    = var.project
+  environment                = var.environment
+  aws_region                 = var.aws_region
+  lambda_source_dir          = "${path.module}/../../../lambda_functions/dashboard_api"
+  inventory_table_name       = module.dynamodb.inventory_table_name
+  vendors_table_name         = module.dynamodb.vendors_table_name
+  rfqs_table_name            = module.dynamodb.rfqs_table_name
+  open_rfqs_table_name       = module.dynamodb.open_rfqs_table_name
+  quotes_table_name          = module.dynamodb.quotes_table_name
+  purchase_orders_table_name = module.dynamodb.purchase_orders_table_name
+  write_api_key              = random_password.dashboard_write_api_key.result
+}
+
+module "frontend" {
+  source = "../../modules/frontend"
+
+  project     = var.project
+  environment = var.environment
 }
 
 module "compute" {

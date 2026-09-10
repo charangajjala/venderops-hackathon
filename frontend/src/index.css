@@ -1,0 +1,122 @@
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0f1115;
+  color: #e6e8eb;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.tagline {
+  color: #9aa1ab;
+  margin-top: 0.25rem;
+}
+
+nav {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+  border-bottom: 1px solid #262a31;
+}
+
+.tab {
+  background: none;
+  border: none;
+  color: #9aa1ab;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  border-bottom: 2px solid transparent;
+}
+
+.tab.active {
+  color: #e6e8eb;
+  border-bottom-color: #4f8cff;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #1e2127;
+}
+
+th {
+  color: #9aa1ab;
+  font-weight: 600;
+}
+
+.row-alert td:nth-child(2) {
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+.row-pending {
+  background: rgba(79, 140, 255, 0.06);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button {
+  border-radius: 6px;
+  border: 1px solid #4f8cff;
+  background: #4f8cff;
+  color: white;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.delta-input {
+  width: 4.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #262a31;
+  background: #15181e;
+  color: #e6e8eb;
+  font-size: 0.85rem;
+}
+
+button.secondary {
+  background: transparent;
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hint {
+  color: #9aa1ab;
+}
+
+.error {
+  color: #ff6b6b;
+}
