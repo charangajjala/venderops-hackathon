@@ -1,0 +1,28 @@
+sequenceDiagram
+    participant Trigger as Sale simulator / Dashboard
+    participant Inv as DynamoDB: Inventory
+    participant RC as Reorder Checker Lambda
+    participant Open as DynamoDB: OpenRFQs
+    participant Agent as AgentCore Runtime (Strands Agent)
+    participant Vend as DynamoDB: Vendors / VendorStock-*
+    participant RFQ as DynamoDB: RFQs
+    participant SES as Amazon SES
+
+    Trigger->>Inv: decrement quantity_on_hand
+    Inv-->>RC: DynamoDB Streams event
+    RC->>RC: quantity_on_hand crossed below reorder_threshold?
+    RC->>Open: is an RFQ already open for this SKU?
+    alt already open
+        RC-->>RC: skip (idempotent)
+    else needs reorder
+        RC->>Agent: invoke_agent_runtime(prompt: reorder SKU X)
+        Agent->>Vend: list_candidate_vendors(sku)
+        Vend-->>Agent: vendors ranked by trust
+        loop until a vendor has enough stock
+            Agent->>Vend: check_vendor_stock(vendor, sku, qty)
+            Vend-->>Agent: sufficient? yes/no
+        end
+        Agent->>RFQ: create_rfq(sku, qty, vendor)
+        RFQ-->>Agent: RFQ written, OpenRFQs claimed
+        Agent->>SES: send RFQ email to vendor
+    end

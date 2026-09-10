@@ -14,72 +14,25 @@ Two independent triggers feed the same deployed agent:
 
 ### Loop A — stock drops, agent reorders
 
-```
-Inventory quantity_on_hand crosses below reorder_threshold (DynamoDB Streams)
-  -> Reorder Checker Lambda (idempotent: skips if an RFQ is already open for that SKU)
-  -> invokes the AgentCore Runtime
-  -> agent: list_candidate_vendors -> check_vendor_stock on each, in trust order,
-     until one actually has enough stock -> create_rfq (writes RFQs + OpenRFQs,
-     emails the vendor via SES)
-```
+![Loop A - reorder trigger](images/loop-a-reorder.svg)
+
+`quantity_on_hand` crosses below `reorder_threshold` (DynamoDB Streams) → the Reorder Checker Lambda fires, skipping the SKU if an RFQ is already open for it → it invokes the AgentCore Runtime → the agent calls `list_candidate_vendors`, then `check_vendor_stock` on each in trust order until one actually has enough stock, then `create_rfq` (writes `RFQs` + `OpenRFQs`, emails the vendor via SES).
 
 ### Loop B — vendor replies, agent decides
 
-```
-Vendor's email reply arrives
-  -> SES receipt rule: raw MIME -> S3, notification -> SNS -> SQS
-  -> Service Lambda: dedupes on SES message-id, parses the MIME body,
-     correlates the RFQ id out of the subject/body
-  -> invokes the AgentCore Runtime
-  -> agent: get_rfq + get_vendor -> record_quote
-       trusted vendor + complete quote  -> create_purchase_order
-         (issues the PO, restocks quantity_on_hand by the ordered amount,
-          closes the SKU's open-RFQ slot, emails a PO confirmation)
-       untrusted vendor / missing terms -> notify_buyer (escalates by email)
-  -> Service Lambda sends the agent's reply back over SES
-```
+![Loop B - vendor reply](images/loop-b-vendor-reply.svg)
+
+The vendor's email reply lands → an SES receipt rule writes the raw MIME to S3 and a notification to SNS → SQS → the Service Lambda dedupes on the SES message-id, parses the MIME body, and correlates the RFQ id out of the subject/body → it invokes the AgentCore Runtime → the agent calls `get_rfq` + `get_vendor`, then `record_quote`. A trusted vendor with a complete quote gets `create_purchase_order` (issues the PO, restocks `quantity_on_hand` by the ordered amount, closes the SKU's open-RFQ slot, emails a PO confirmation); an untrusted vendor or a quote missing key terms gets `notify_buyer` instead, escalating to a human — who can Approve or Reject it from the dashboard. The Service Lambda sends the agent's reply back over SES either way.
 
 An interactive dashboard (React + a small API Gateway/Lambda backend) sits on top for visibility and human decisions: live Inventory/Vendors/RFQs/Purchase Orders views, Approve/Reject actions on any RFQ pending a buyer decision (closing the escalation loop from a click instead of a manual DynamoDB edit), and a "sell"/"restock" control on Inventory that writes straight to the real table — so an adjustment there drives the real Streams → Reorder Checker → AgentCore pipeline, not a mock.
 
 ## Architecture
 
-```
-                                    ┌─────────────────────┐
-   Inventory adjustment ───────────▶  DynamoDB: Inventory │──── Streams ───┐
-   (dashboard button, or                                  │                │
-    dev-scripts/simulate_sale.py)  └─────────────────────┘                 ▼
-                                                              ┌───────────────────────┐
-                                                              │ Reorder Checker Lambda │
-                                                              │ (skip if OpenRFQs open)│
-                                                              └───────────┬────────────┘
-                                                                          │ invoke_agent_runtime
-                                                                          ▼
-   Vendor's reply email                                     ┌───────────────────────────┐
-        │                                                    │   Bedrock AgentCore        │
-        ▼                                                    │   Runtime (Strands Agent)  │
-   SES receipt rule                                          │                             │
-        │  raw MIME -> S3 (raw-emails)                       │   tools:                   │
-        │  notification -> SNS -> SQS                        │   - get_inventory_status   │
-        ▼                                                     │   - list_candidate_vendors │
-   Service Lambda ───────── invoke_agent_runtime ───────────▶ │   - check_vendor_stock     │
-   (dedupe, MIME parse,                                       │   - create_rfq             │
-    RFQ-id correlation,                                       │   - get_rfq / get_vendor   │
-    sends reply via SES)  ◀──────────── agent response ────── │   - record_quote           │
-                                                                │   - create_purchase_order  │
-                                                                │   - notify_buyer           │
-                                                                │                             │
-                                                                │   session state -> S3       │
-                                                                └──────────┬──────────────────┘
-                                                                           │ reads/writes
-                                                                           ▼
-                              DynamoDB: Vendors, VendorStock-<vendor> (one table per
-                              vendor), RFQs, OpenRFQs, Quotes, PurchaseOrders, Idempotency
-
-   Dashboard (React, CloudFront + S3) ──── API Gateway HTTP API ──── Dashboard API Lambda
-   Inventory / Vendors / RFQs (+ Approve/Reject) / Purchase Orders  (same tables, plain boto3)
-```
+![Architecture](images/architecture.svg)
 
 Everything is serverless — no VPC, no NAT Gateway, no always-on compute. DynamoDB, S3, SNS, SQS, SES, Lambda, and Bedrock are all reachable directly, so idle cost is effectively zero (see [Cost](#cost) below).
+
+Diagram source lives in `diagrams/*.mmd` (Mermaid) - rendered SVGs in `images/` are what this README actually displays. Regenerate after an architecture change with the [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli) (`mmdc -i diagrams/architecture.mmd -o images/architecture.svg`) or the [Mermaid Live Editor](https://mermaid.live).
 
 ## Why the design looks the way it does
 
@@ -99,6 +52,8 @@ lambda_functions/
   service/                   SQS -> AgentCore invoke -> SES reply (Loop B)
   dashboard_api/              REST-ish CRUD + approve/reject over the same tables
 frontend/                    React (Vite) dashboard
+diagrams/                    Mermaid source for the architecture + sequence diagrams
+images/                      Rendered SVGs of the diagrams above, referenced by this README
 infra/
   bootstrap/                  shared Terraform state backend
   environments/dev/           root module wiring every other module together
