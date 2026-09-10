@@ -164,6 +164,34 @@ def _approve_rfq(event):
     return _response(200, {"created": True, "email": email_result, **po})
 
 
+def _adjust_inventory(event):
+    if not _authorized(event):
+        return _response(401, {"error": "unauthorized"})
+
+    sku = event["pathParameters"]["sku"]
+    try:
+        body = json.loads(event.get("body") or "{}")
+        delta = int(body["delta"])
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+        return _response(400, {"error": "body must be JSON with an integer 'delta' (negative to simulate a sale, positive to restock)"})
+
+    table = _table(INVENTORY_TABLE)
+    try:
+        result = table.update_item(
+            Key={"sku": sku},
+            UpdateExpression="SET quantity_on_hand = if_not_exists(quantity_on_hand, :zero) + :delta",
+            ConditionExpression="attribute_not_exists(quantity_on_hand) OR quantity_on_hand + :delta >= :zero",
+            ExpressionAttributeValues={":delta": delta, ":zero": 0},
+            ReturnValues="ALL_NEW",
+        )
+    except ClientError as exc:
+        if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return _response(409, {"error": f"not enough stock on hand for sku {sku} to apply delta {delta}"})
+        raise
+
+    return _response(200, result["Attributes"])
+
+
 def _reject_rfq(event):
     if not _authorized(event):
         return _response(401, {"error": "unauthorized"})
@@ -191,6 +219,7 @@ ROUTES = {
     "GET /vendors": _list_vendors,
     "GET /rfqs": _list_rfqs,
     "GET /purchase-orders": _list_purchase_orders,
+    "POST /inventory/{sku}/adjust": _adjust_inventory,
     "POST /rfqs/{rfq_id}/approve": _approve_rfq,
     "POST /rfqs/{rfq_id}/reject": _reject_rfq,
 }

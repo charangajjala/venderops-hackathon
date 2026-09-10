@@ -92,6 +92,16 @@ button {
   font-size: 0.85rem;
 }
 
+.delta-input {
+  width: 4.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #262a31;
+  background: #15181e;
+  color: #e6e8eb;
+  font-size: 0.85rem;
+}
+
 button.secondary {
   background: transparent;
   color: #ff6b6b;

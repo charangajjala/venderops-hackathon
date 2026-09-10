@@ -168,6 +168,12 @@ resource "aws_apigatewayv2_route" "get_purchase_orders" {
   target    = "integrations/${aws_apigatewayv2_integration.dashboard_api.id}"
 }
 
+resource "aws_apigatewayv2_route" "post_adjust_inventory" {
+  api_id    = aws_apigatewayv2_api.dashboard.id
+  route_key = "POST /inventory/{sku}/adjust"
+  target    = "integrations/${aws_apigatewayv2_integration.dashboard_api.id}"
+}
+
 resource "aws_apigatewayv2_route" "post_approve" {
   api_id    = aws_apigatewayv2_api.dashboard.id
   route_key = "POST /rfqs/{rfq_id}/approve"

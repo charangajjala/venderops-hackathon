@@ -21,6 +21,13 @@ export const getVendors = () => request("/vendors")
 export const getRfqs = () => request("/rfqs")
 export const getPurchaseOrders = () => request("/purchase-orders")
 
+export const adjustInventory = (sku, delta) =>
+  request(`/inventory/${encodeURIComponent(sku)}/adjust`, {
+    method: "POST",
+    headers: { "X-Api-Key": WRITE_API_KEY },
+    body: JSON.stringify({ delta }),
+  })
+
 export const approveRfq = (rfqId) =>
   request(`/rfqs/${rfqId}/approve`, {
     method: "POST",
