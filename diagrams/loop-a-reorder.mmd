@@ -1,28 +1,31 @@
-sequenceDiagram
-    participant Trigger as Sale simulator / Dashboard
-    participant Inv as DynamoDB: Inventory
-    participant RC as Reorder Checker Lambda
-    participant Open as DynamoDB: OpenRFQs
-    participant Agent as AgentCore Runtime (Strands Agent)
-    participant Vend as DynamoDB: Vendors / VendorStock-*
-    participant RFQ as DynamoDB: RFQs
-    participant SES as Amazon SES
+flowchart TD
+    Start(["Stock sold\n(dashboard button, or\nsimulate_sale.py)"])
+    Dec["Inventory.quantity_on_hand\ndecremented"]
+    Stream{{"DynamoDB Streams event"}}
+    Cross{"Crossed below\nreorder_threshold?"}
+    NoOp1(["No action"])
+    Open{"RFQ already open\nfor this SKU?\n(OpenRFQs)"}
+    Skip(["Skip - already in flight"])
+    Invoke["Reorder Checker Lambda\ninvokes AgentCore Runtime"]
+    List["agent: list_candidate_vendors\n(ranked by trust)"]
+    Check{"check_vendor_stock\non next candidate"}
+    NextVendor["try next-ranked vendor"]
+    Escalate(["No vendor has stock -\nagent says so, asks a human"])
+    CreateRFQ["agent: create_rfq\nwrites RFQs + OpenRFQs"]
+    Email(["SES sends RFQ email\nto the vendor"])
 
-    Trigger->>Inv: decrement quantity_on_hand
-    Inv-->>RC: DynamoDB Streams event
-    RC->>RC: quantity_on_hand crossed below reorder_threshold?
-    RC->>Open: is an RFQ already open for this SKU?
-    alt already open
-        RC-->>RC: skip (idempotent)
-    else needs reorder
-        RC->>Agent: invoke_agent_runtime(prompt: reorder SKU X)
-        Agent->>Vend: list_candidate_vendors(sku)
-        Vend-->>Agent: vendors ranked by trust
-        loop until a vendor has enough stock
-            Agent->>Vend: check_vendor_stock(vendor, sku, qty)
-            Vend-->>Agent: sufficient? yes/no
-        end
-        Agent->>RFQ: create_rfq(sku, qty, vendor)
-        RFQ-->>Agent: RFQ written, OpenRFQs claimed
-        Agent->>SES: send RFQ email to vendor
-    end
+    Start --> Dec --> Stream --> Cross
+    Cross -- no --> NoOp1
+    Cross -- yes --> Open
+    Open -- yes --> Skip
+    Open -- no --> Invoke --> List --> Check
+    Check -- insufficient, more candidates --> NextVendor --> Check
+    Check -- insufficient, none left --> Escalate
+    Check -- sufficient --> CreateRFQ --> Email
+
+    classDef terminal fill:#1b2735,stroke:#4f8cff,color:#e6e8eb;
+    classDef decision fill:#2a1f14,stroke:#e3b341,color:#e6e8eb;
+    classDef compute fill:#161b22,stroke:#3fb950,color:#e6e8eb;
+    class Start,NoOp1,Skip,Escalate,Email terminal;
+    class Cross,Open,Check decision;
+    class Dec,Stream,Invoke,List,NextVendor,CreateRFQ compute;
