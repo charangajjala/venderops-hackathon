@@ -1,31 +1,13 @@
-flowchart TD
-    Start(["Stock sold\n(dashboard button, or\nsimulate_sale.py)"])
-    Dec["Inventory.quantity_on_hand\ndecremented"]
-    Stream{{"DynamoDB Streams event"}}
-    Cross{"Crossed below\nreorder_threshold?"}
-    NoOp1(["No action"])
-    Open{"RFQ already open\nfor this SKU?\n(OpenRFQs)"}
-    Skip(["Skip - already in flight"])
-    Invoke["Reorder Checker Lambda\ninvokes AgentCore Runtime"]
-    List["agent: list_candidate_vendors\n(ranked by trust)"]
-    Check{"check_vendor_stock\non next candidate"}
-    NextVendor["try next-ranked vendor"]
-    Escalate(["No vendor has stock -\nagent says so, asks a human"])
-    CreateRFQ["agent: create_rfq\nwrites RFQs + OpenRFQs"]
-    Email(["SES sends RFQ email\nto the vendor"])
-
-    Start --> Dec --> Stream --> Cross
-    Cross -- no --> NoOp1
-    Cross -- yes --> Open
-    Open -- yes --> Skip
-    Open -- no --> Invoke --> List --> Check
-    Check -- insufficient, more candidates --> NextVendor --> Check
-    Check -- insufficient, none left --> Escalate
-    Check -- sufficient --> CreateRFQ --> Email
+flowchart LR
+    Start(["Stock sold"]) --> Dec["Inventory\ndecremented"] --> Cross{"Below threshold,\nno RFQ already open?"}
+    Cross -- no --> NoOp(["No action"])
+    Cross -- yes --> Agent["Agent ranks vendors by trust,\nchecks stock until one qualifies"] --> Result{"Vendor\nfound?"}
+    Result -- yes --> RFQ(["create_rfq:\nRFQ sent to vendor"])
+    Result -- no --> Escalate(["Agent asks a human"])
 
     classDef terminal fill:#1b2735,stroke:#4f8cff,color:#e6e8eb;
     classDef decision fill:#2a1f14,stroke:#e3b341,color:#e6e8eb;
     classDef compute fill:#161b22,stroke:#3fb950,color:#e6e8eb;
-    class Start,NoOp1,Skip,Escalate,Email terminal;
-    class Cross,Open,Check decision;
-    class Dec,Stream,Invoke,List,NextVendor,CreateRFQ compute;
+    class Start,NoOp,RFQ,Escalate terminal;
+    class Cross,Result decision;
+    class Dec,Agent compute;
