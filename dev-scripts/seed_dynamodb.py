@@ -11,7 +11,7 @@ from vendorops_agent.db import (
     vendor_stock_table_name,
 )
 
-SKU = "milk-1l-organic"
+SKU = "eggs-dozen-freerange"
 
 # contact_email points at SES-verified test addresses, not real vendor inboxes -
 # SES is still in sandbox mode (production access denied), so it can only send

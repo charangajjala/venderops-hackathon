@@ -25,12 +25,6 @@ export function Inventory() {
 
   return (
     <div>
-      <p className="hint">
-        Simulate a checkout sale (negative) or a manual restock (positive). This writes straight
-        to the real Inventory table - a threshold crossing triggers the same DynamoDB
-        Streams → Reorder Checker → AgentCore pipeline the live system runs on, so you can watch
-        the agent actually react.
-      </p>
       {actionError && <p className="error">{actionError}</p>}
       <StatusPanel loading={loading} error={error} empty={data && data.length === 0} emptyLabel="No inventory items yet.">
         <table>
