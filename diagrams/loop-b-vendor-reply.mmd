@@ -1,0 +1,13 @@
+flowchart LR
+    Start(["Vendor replies"]) --> Ingest["SES to S3/SQS,\nService Lambda parses"] --> Dup{"Already\nprocessed?"}
+    Dup -- yes --> SkipDup(["Skip"])
+    Dup -- no --> Trust{"Trusted vendor +\ncomplete quote?"}
+    Trust -- yes --> IssuePO["create_purchase_order:\nPO issued, restocks inventory"] --> ConfirmEmail(["PO confirmation\nto vendor"])
+    Trust -- no --> Notify["notify_buyer\n(escalation email)"] --> Dashboard(["Buyer Approves/Rejects\non the dashboard"])
+
+    classDef terminal fill:#1b2735,stroke:#4f8cff,color:#e6e8eb;
+    classDef decision fill:#2a1f14,stroke:#e3b341,color:#e6e8eb;
+    classDef compute fill:#161b22,stroke:#3fb950,color:#e6e8eb;
+    class Start,SkipDup,ConfirmEmail,Dashboard terminal;
+    class Dup,Trust decision;
+    class Ingest,IssuePO,Notify compute;

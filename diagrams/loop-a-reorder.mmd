@@ -1,0 +1,13 @@
+flowchart LR
+    Start(["Stock sold"]) --> Dec["Inventory\ndecremented"] --> Cross{"Below threshold,\nno RFQ already open?"}
+    Cross -- no --> NoOp(["No action"])
+    Cross -- yes --> Agent["Agent ranks vendors by trust,\nchecks stock until one qualifies"] --> Result{"Vendor\nfound?"}
+    Result -- yes --> RFQ(["create_rfq:\nRFQ sent to vendor"])
+    Result -- no --> Escalate(["Agent asks a human"])
+
+    classDef terminal fill:#1b2735,stroke:#4f8cff,color:#e6e8eb;
+    classDef decision fill:#2a1f14,stroke:#e3b341,color:#e6e8eb;
+    classDef compute fill:#161b22,stroke:#3fb950,color:#e6e8eb;
+    class Start,NoOp,RFQ,Escalate terminal;
+    class Cross,Result decision;
+    class Dec,Agent compute;

@@ -1,0 +1,82 @@
+flowchart TD
+    subgraph Demo["Demo Triggers"]
+        Sim["dev-scripts/simulate_sale.py"]
+        Dash["Dashboard: Sell / Restock button"]
+    end
+
+    subgraph Inv["Inventory"]
+        InvTable[("DynamoDB: Inventory")]
+        Streams["DynamoDB Streams"]
+    end
+
+    ReorderChecker["Reorder Checker Lambda\n(skips if OpenRFQs already open for SKU)"]
+
+    subgraph Runtime["Bedrock AgentCore Runtime"]
+        Agent["Strands Agent\nNova Micro"]
+        Tools["tools:\nget_inventory_status\nlist_candidate_vendors\ncheck_vendor_stock\ncreate_rfq\nget_rfq / get_vendor\nrecord_quote\ncreate_purchase_order\nnotify_buyer"]
+        Sessions[("S3: agent-sessions")]
+        Agent --- Tools
+        Agent -.session state.-> Sessions
+    end
+
+    subgraph Data["DynamoDB"]
+        Vendors[("Vendors")]
+        VendorStock[("VendorStock-&lt;vendor&gt;\n(one table per vendor)")]
+        RFQs[("RFQs")]
+        OpenRFQs[("OpenRFQs")]
+        Quotes[("Quotes")]
+        POs[("PurchaseOrders")]
+        Idem[("Idempotency")]
+    end
+
+    subgraph Inbound["Vendor Reply Ingestion"]
+        VendorEmail["Vendor's email reply"]
+        SES["SES receipt rule"]
+        RawEmails[("S3: raw-emails")]
+        SNS["SNS topic"]
+        SQS["SQS queue + DLQ"]
+        ServiceLambda["Service Lambda\n(dedupe, MIME parse, RFQ-id correlation)"]
+    end
+
+    subgraph Dashboard["Dashboard"]
+        CF["CloudFront + S3\n(private, OAC)"]
+        APIGW["API Gateway HTTP API"]
+        DashAPI["Dashboard API Lambda\n(GET inventory/vendors/rfqs/POs\nPOST approve / reject / adjust)"]
+    end
+
+    Sim --> InvTable
+    Dash --> DashAPI --> InvTable
+    InvTable --> Streams --> ReorderChecker
+    ReorderChecker -->|invoke_agent_runtime| Agent
+    ReorderChecker --> OpenRFQs
+
+    VendorEmail --> SES
+    SES -->|raw MIME| RawEmails
+    SES -->|notification| SNS --> SQS --> ServiceLambda
+    ServiceLambda --> RawEmails
+    ServiceLambda -->|invoke_agent_runtime| Agent
+    ServiceLambda -->|reply email| SES
+    ServiceLambda --> Idem
+
+    Tools --> Vendors
+    Tools --> VendorStock
+    Tools --> RFQs
+    Tools --> OpenRFQs
+    Tools --> Quotes
+    Tools --> POs
+    Tools -->|SES SendEmail| SES
+
+    CF --> APIGW --> DashAPI
+    DashAPI --> Vendors
+    DashAPI --> RFQs
+    DashAPI --> OpenRFQs
+    DashAPI --> Quotes
+    DashAPI --> POs
+    DashAPI -->|SES SendEmail| SES
+
+    classDef store fill:#1b2735,stroke:#4f8cff,color:#e6e8eb;
+    classDef compute fill:#161b22,stroke:#3fb950,color:#e6e8eb;
+    classDef external fill:#2a1f14,stroke:#e3b341,color:#e6e8eb;
+    class InvTable,Vendors,VendorStock,RFQs,OpenRFQs,Quotes,POs,Idem,RawEmails,Sessions store;
+    class ReorderChecker,ServiceLambda,DashAPI,Agent compute;
+    class VendorEmail,Sim,Dash external;
