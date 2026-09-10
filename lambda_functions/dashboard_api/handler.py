@@ -176,17 +176,26 @@ def _adjust_inventory(event):
         return _response(400, {"error": "body must be JSON with an integer 'delta' (negative to simulate a sale, positive to restock)"})
 
     table = _table(INVENTORY_TABLE)
+    item = table.get_item(Key={"sku": sku}).get("Item")
+    if item is None:
+        return _response(404, {"error": f"no inventory record for sku {sku}"})
+
+    current = int(item.get("quantity_on_hand", 0))
+    new_qty = current + delta
+    if new_qty < 0:
+        return _response(409, {"error": f"not enough stock on hand for sku {sku} to apply delta {delta} (currently {current})"})
+
     try:
         result = table.update_item(
             Key={"sku": sku},
-            UpdateExpression="SET quantity_on_hand = if_not_exists(quantity_on_hand, :zero) + :delta",
-            ConditionExpression="attribute_not_exists(quantity_on_hand) OR quantity_on_hand + :delta >= :zero",
-            ExpressionAttributeValues={":delta": delta, ":zero": 0},
+            UpdateExpression="SET quantity_on_hand = :new",
+            ConditionExpression="quantity_on_hand = :current",
+            ExpressionAttributeValues={":new": new_qty, ":current": current},
             ReturnValues="ALL_NEW",
         )
     except ClientError as exc:
         if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
-            return _response(409, {"error": f"not enough stock on hand for sku {sku} to apply delta {delta}"})
+            return _response(409, {"error": f"sku {sku} was updated concurrently, retry"})
         raise
 
     return _response(200, result["Attributes"])

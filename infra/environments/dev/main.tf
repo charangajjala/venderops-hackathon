@@ -61,7 +61,7 @@ module "agentcore" {
   environment               = var.environment
   aws_region                = var.aws_region
   agent_sessions_bucket_arn = module.storage.agent_sessions_bucket_arn
-  image_tag                 = "v6"
+  image_tag                 = "v7"
 }
 
 resource "random_password" "dashboard_write_api_key" {
